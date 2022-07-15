@@ -1,4 +1,4 @@
-Caerus: A Caching-based Framework for Scalable Temporal Graph Neural Networks
+Caerus: A Scalable Caching-based Framework for Temporal Graph Neural Networks
 =============================================================================
 
 ## Dataset
