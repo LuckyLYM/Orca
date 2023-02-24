@@ -1,4 +1,4 @@
-Caerus: A Scalable Caching-based Framework for Temporal Graph Neural Networks
+Orca: Scalable Temporal Graph Neural Network Training with Theoretical Guarantees
 =============================================================================
 
 ## Dataset
