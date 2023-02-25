@@ -37,11 +37,10 @@ Optional arguments:
     --patience              Patience for early stopping
     --enable_random         Use random seeds
     --gradient              Disable gradient blocking
-    --reuse                 Enable caching and reusing
+    --reuse                 Enable caching and reuse
     --budget                Cache size
-    --new                   Use intermediate embeddings in attention modules
-    --optimize_memory       Optimize memory update
+
     
 Example usage:
-    python train.py --n_epoch 50 --n_layer 2 --bs 200 -d askubuntu --gpu 0  --optimize_memory --new --reuse --budget 1000 --lr 1e-6
+    python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 1
 ```
