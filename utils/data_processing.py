@@ -1,9 +1,6 @@
-from math import radians
 import numpy as np
 import random
 import pandas as pd
-from collections import defaultdict
-import pickle
 
 class Data:
   def __init__(self, sources, destinations, timestamps, edge_idxs, labels):
@@ -31,47 +28,8 @@ class Data:
     return Data(sources,destination,timestamps,edge_idxs,labels)
 
 
-def merge_last_two(d):
-  n_batch=d.n_batch
-  d.tbatch[n_batch-2].extend(d.tbatch[n_batch-1])
-  d.n_batch-=1
-  return d
-
-
-def compute_time_statistics(sources, destinations, timestamps):
-  last_timestamp_sources = dict()
-  last_timestamp_dst = dict()
-  all_timediffs_src = []
-  all_timediffs_dst = []
-
-  for k in range(len(sources)):
-    source_id = sources[k]
-    dest_id = destinations[k]
-    c_timestamp = timestamps[k]
-
-    if source_id not in last_timestamp_sources.keys():
-      last_timestamp_sources[source_id] = 0
-    if dest_id not in last_timestamp_dst.keys():
-      last_timestamp_dst[dest_id] = 0
-
-    all_timediffs_src.append(c_timestamp - last_timestamp_sources[source_id])
-    all_timediffs_dst.append(c_timestamp - last_timestamp_dst[dest_id])
-    last_timestamp_sources[source_id] = c_timestamp
-    last_timestamp_dst[dest_id] = c_timestamp
-    
-  assert len(all_timediffs_src) == len(sources)
-  assert len(all_timediffs_dst) == len(sources)
-  mean_time_shift_src = np.mean(all_timediffs_src)
-  std_time_shift_src = np.std(all_timediffs_src)
-  mean_time_shift_dst = np.mean(all_timediffs_dst)
-  std_time_shift_dst = np.std(all_timediffs_dst)
-  return mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst
-
-
-
-
 ############## load a batch of training data ##############
-def get_data(dataset_name, staleness=-1,n_neighbor=10,sequential=False,maximum_batch_size=-1):
+def get_data(dataset_name):
   graph_df = pd.read_csv('../data/{}/ml_{}.csv'.format(dataset_name,dataset_name))
   edge_features = np.load('../data/{}/ml_{}.npy'.format(dataset_name,dataset_name))
   node_features = np.load('../data/{}/ml_{}_node.npy'.format(dataset_name,dataset_name)) 
@@ -84,7 +42,6 @@ def get_data(dataset_name, staleness=-1,n_neighbor=10,sequential=False,maximum_b
   timestamps = graph_df.ts.values
   full_data = Data(sources, destinations, timestamps, edge_idxs, labels)
   
-  # ensure we get the same graph
   random.seed(2020)
   node_set = set(sources) | set(destinations)
   n_total_unique_nodes = len(node_set)
@@ -123,31 +80,6 @@ def get_data(dataset_name, staleness=-1,n_neighbor=10,sequential=False,maximum_b
                             labels[new_node_test_mask])
 
 
-  #### * if use temporal graph partition, we load precomputed graph partitions
-  if staleness!=-1:
-
-    if not sequential:
-      file=dataset_name+'_one_hop_'+str(staleness)+'_ngh_'+str(n_neighbor)
-    else:
-      file=dataset_name+'_seq_'+str(staleness)
-    if maximum_batch_size!=-1:
-        file=file+'_upper_'+str(maximum_batch_size)
-    file='./data/'+dataset_name+'/'+file
-    f=open(file,"rb")
-    results=pickle.load(f)
-
-    train_data.tbatch=results['train'] # filetype: defaultdict(list)
-    train_data.n_batch=len(train_data.tbatch)
-    val_data.tbatch=results['val']
-    val_data.n_batch=len(val_data.tbatch)
-    test_data.tbatch=results['test']
-    test_data.n_batch=len(test_data.tbatch)
-    new_node_val_data.tbatch=results['new_node_val']
-    new_node_val_data.n_batch=len(new_node_val_data.tbatch)
-    new_node_test_data.tbatch=results['new_node_test']
-    new_node_test_data.n_batch=len(new_node_test_data.tbatch)
-
-
   print("The dataset has {} interactions, involving {} different nodes".format(full_data.n_interactions,full_data.n_unique_nodes))
   print("The training dataset has {} interactions, involving {} different nodes".format(
     train_data.n_interactions, train_data.n_unique_nodes))
@@ -164,7 +96,3 @@ def get_data(dataset_name, staleness=-1,n_neighbor=10,sequential=False,maximum_b
   return node_features, edge_features, full_data, train_data, val_data, test_data, \
          new_node_val_data, new_node_test_data
 
-
-
-if __name__ == "__main__":
-    partition_method='one_hop'

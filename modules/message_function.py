@@ -1,6 +1,5 @@
 from torch import nn
 
-
 class MessageFunction(nn.Module):
   """
   Module which computes the message for a given interaction.

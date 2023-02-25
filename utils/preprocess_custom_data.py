@@ -95,7 +95,6 @@ def reindex(df, bipartite=True):
   return new_df
 
 
-# TODO: we should be very careful about whether the input graph is bipartie or not
 def run(data_name, bipartite=True):
   Path("data/").mkdir(parents=True, exist_ok=True)
   PATH = f'./data/{data_name}/{data_name}'
@@ -118,7 +117,7 @@ def run(data_name, bipartite=True):
   np.save(OUT_NODE_FEAT, rand_feat)
 
 
-# python preprocess_custom_data.py --data large_reddit
+# python preprocess_custom_data.py --data superuser
 parser = argparse.ArgumentParser('Interface for TGN data preprocessing')
 parser.add_argument('--data', type=str, help='Dataset name (eg. wikipedia or reddit)',default='wikipedia')
 parser.add_argument('--bipartite', action='store_true', help='Whether the graph is bipartite')

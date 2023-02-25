@@ -1,8 +1,5 @@
-from typing import Optional
 import torch
-from torch import Tensor
 import numpy as np
-
 
 class History(torch.nn.Module):
 
@@ -15,8 +12,7 @@ class History(torch.nn.Module):
         self._device = device
         self.update_times=torch.zeros(num_embeddings)
         self.reset_parameters()
-
-        # * for budgeted reuse
+        
         self.cache_flag=np.zeros(num_embeddings)
         self.budget = history_budget if history_budget!=0 else num_embeddings
 
@@ -43,14 +39,10 @@ class History(torch.nn.Module):
     def push(self, x, inds):
         self.emb[inds] = x.clone()
     
-    # * we need to detach history frequently...
     def push_and_pull(self, x, push_inds, pull_inds):
-        #print(f'before emb {self.emb.requires_grad}')
-        self.emb[push_inds] = x  # this make self.emb also have gradients
+        self.emb[push_inds] = x  
         out=self.emb.index_select(0, pull_inds)
-        #print(f'emb {self.emb.requires_grad}, out {out.requires_grad} {out.shape}')
         self.emb=self.emb.clone()
-        #print(f'after emb {self.emb.requires_grad}')
         return out
     
 
