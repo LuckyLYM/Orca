@@ -52,13 +52,6 @@ parser.add_argument('--reuse_test', action='store_true',help='reuse when testing
 parser.add_argument('--cache_strategy', type=str, default="MRU", help='[MRU|LRU|2Q]')
 
 
-
-# python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 3
-
-# python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 1 --cache_strategy LRU
-
-# python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 2 --cache_strategy 2Q
-
 args = parser.parse_args()
 NUM_NEIGHBORS = args.n_degree
 NUM_NEG = 1
