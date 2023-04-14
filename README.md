@@ -42,5 +42,6 @@ Optional arguments:
 
     
 Example usage:
-    python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 1
+    python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --lr 1e-4 --gpu 1
+    python train.py --n_epoch 50 --n_layer 2 --bs 200 -d askubuntu  --enable_random --reuse --budget 1000 --lr 1e-7 --gpu 1
 ```
