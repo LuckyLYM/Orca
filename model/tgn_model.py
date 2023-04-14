@@ -78,7 +78,7 @@ class TGN(torch.nn.Module):
                                                  n_layers=self.n_layers,
                                                  n_node_features=self.n_node_features,
                                                  n_edge_features=self.n_edge_features,
-                                                 n_time_features=self.n_node_features,
+                                                 n_time_features=self.time_dimension,
                                                  embedding_dimension=self.embedding_dimension,
                                                  device=self.device,
                                                  n_heads=n_heads, dropout=dropout,
