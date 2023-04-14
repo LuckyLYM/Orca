@@ -12,7 +12,7 @@ from evaluation.evaluation import eval_edge_prediction
 from model.tgn_model import TGN
 from utils.util import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.cache import get_cache_plan
-from utils.data_processing import get_data
+from utils.data_processing import get_data,load_feat
 from tqdm import tqdm
 from sklearn.metrics import average_precision_score, roc_auc_score, accuracy_score
 
@@ -27,20 +27,19 @@ parser.add_argument('--n_layer', type=int, default=2, help='Number of network la
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
 parser.add_argument('--patience', type=int, default=5, help='Patience for early stopping')
 parser.add_argument('--n_runs', type=int, default=1, help='Number of runs')
-parser.add_argument('--drop_out', type=float, default=0.1, help='Dropout probability')
+parser.add_argument('--drop_out', type=float, default=0.4, help='Dropout probability')
 parser.add_argument('--gpu', type=int, default=0, help='Idx for the gpu to use')
+
 parser.add_argument('--use_destination_embedding_in_message', action='store_true',help='Whether to use the embedding of the destination node as part of the message')
 parser.add_argument('--use_source_embedding_in_message', action='store_true',help='Whether to use the embedding of the source node as part of the message')
 parser.add_argument('--embedding_module', type=str, default="graph_attention", choices=["graph_attention", "graph_sum", "identity", "time"], help='Type of embedding module')
 parser.add_argument('--message_function', type=str, default="identity", choices=["mlp", "identity"], help='Type of message function')
 parser.add_argument('--memory_updater', type=str, default="gru", choices=["gru", "rnn"], help='Type of memory updater')
 parser.add_argument('--aggregator', type=str, default="last", help='Type of message aggregator')
-parser.add_argument('--node_dim', type=int, default=100, help='Dimensions of the node embedding')
-parser.add_argument('--time_dim', type=int, default=100, help='Dimensions of the time embedding')
-parser.add_argument('--message_dim', type=int, default=100, help='Dimensions of the messages')
-parser.add_argument('--memory_dim', type=int, default=172, help='Dimensions of the memory for each user')
+
+
 parser.add_argument('--enable_random', action='store_true',help='use random seeds')
-parser.add_argument('--budget', type=int, default=0, help='budget on the number of cached nodes')
+parser.add_argument('--budget', type=int, default=0, help='budget on the number of cached nodes, 0 indicates unlimited budget')
 parser.add_argument('--gradient', action='store_true',help='enable history with gradients')
 parser.add_argument('--log', action='store_true',help='log data distribution')
 parser.add_argument('--time', type=str, default="real", help='[real|order]')
@@ -49,8 +48,19 @@ parser.add_argument('--clip_norm', action='store_true',help='clip gradient norm'
 parser.add_argument('--clip', type=float, default=1, help='the gradient clipping value')
 parser.add_argument('--reuse', action='store_true', help='reuse historical embeddings')
 parser.add_argument('--reuse_test', action='store_true',help='reuse when testing')
-parser.add_argument('--cache_strategy', type=str, default="MRU", help='[MRU|LRU|2Q]')
+parser.add_argument('--cache_strategy', type=str, default="MRD", help='[MRD|LRU|2Q]')
 
+
+parser.add_argument('--ignore_edge_feats', action='store_true')
+parser.add_argument('--ignore_node_feats', action='store_true')
+parser.add_argument('--node_dim', type=int, default=100, help='Dimensions of the node embedding')
+parser.add_argument('--time_dim', type=int, default=100, help='Dimensions of the time embedding')
+parser.add_argument('--memory_dim', type=int, default=100, help='Dimensions of the memory')
+
+
+# python train.py --n_epoch 50 --n_layer 1 --bs 200 -d wikipedia  --enable_random --gpu 4
+# python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse 
+# python train.py --n_epoch 50 --n_layer 2 --bs 200 -d wikipedia  --enable_random --reuse --budget 1000 --gpu 2 
 
 args = parser.parse_args()
 NUM_NEIGHBORS = args.n_degree
@@ -64,9 +74,9 @@ NUM_LAYER = args.n_layer
 LEARNING_RATE = args.lr
 NODE_DIM = args.node_dim
 TIME_DIM = args.time_dim
-MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
 BATCH_SIZE = args.bs
+USE_MEMORY = True
 
 Path("./saved_models/").mkdir(parents=True, exist_ok=True)
 Path("./saved_checkpoints/").mkdir(parents=True, exist_ok=True)
@@ -103,7 +113,6 @@ if args.clip_value:
 print(filename)
 
 
-### get logger
 Path(f"log/{args.data}").mkdir(parents=True, exist_ok=True)
 fh = logging.FileHandler(f'log/{args.data}/{filename}')
 fh.setLevel(logging.DEBUG)
@@ -116,12 +125,25 @@ logger.addHandler(fh)
 logger.addHandler(ch)
 
 
-### get dataset and sampler 
-node_features, edge_features, full_data, full_train_data, full_val_data, test_data, new_node_val_data,new_node_test_data = get_data(DATA)
+full_data, full_train_data, full_val_data, test_data, new_node_val_data, new_node_test_data, n_nodes, n_edges = get_data(DATA)
+args.n_nodes = n_nodes +1
+args.n_edges = n_edges +1
+
+
+node_feats, edge_feats = load_feat(args.data)
+if args.ignore_node_feats:
+  print('>>> Ignore node features')
+  node_feats = None
+  node_feat_dims = 0
+
+if edge_feats is None or args.ignore_edge_feats: 
+  print('>>> Ignore edge features')
+  edge_feats = np.zeros((args.n_edges, 1))
+  edge_feat_dims = 1
+
+
 train_ngh_finder = get_neighbor_finder(full_train_data)
 full_ngh_finder = get_neighbor_finder(full_data)
-
-### negative sampler
 train_rand_sampler = RandEdgeSampler(full_train_data.sources, full_train_data.destinations)
 val_rand_sampler = RandEdgeSampler(full_data.sources, full_data.destinations, seed=0)
 nn_val_rand_sampler = RandEdgeSampler(new_node_val_data.sources, new_node_val_data.destinations,seed=1)
@@ -134,19 +156,17 @@ device = torch.device(device_string)
 ############# get cache plan #############
 if args.reuse and args.budget>0:
   strategy = args.cache_strategy
-  num_embeddings=node_features.shape[0]
+  num_embeddings=args.n_nodes
   t_start=time.time()
   train_cache_plan_list=get_cache_plan(args,full_train_data,train_ngh_finder,num_embeddings,strategy)
   t_cache = time.time()-t_start
-  print(f'cache time {t_cache}')
 
 
 for i in range(args.n_runs):
-  tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
-            edge_features=edge_features, device=device,
-            n_layers=NUM_LAYER,
-            n_heads=NUM_HEADS, dropout=DROP_OUT,
-            message_dimension=MESSAGE_DIM, memory_dimension=MEMORY_DIM,
+  tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_feats,
+            edge_features=edge_feats, device=device,
+            n_layers=NUM_LAYER,n_heads=NUM_HEADS, dropout=DROP_OUT, use_memory=USE_MEMORY,
+            node_dimension = NODE_DIM, time_dimension = TIME_DIM, memory_dimension=MEMORY_DIM,
             embedding_module_type=args.embedding_module, 
             message_function=args.message_function, 
             aggregator_type=args.aggregator,
@@ -244,7 +264,7 @@ for i in range(args.n_runs):
         tgn.embedding_module.detach_history()
 
     epoch_train_time = time.time() - t_epoch_train_start
-    t_total_epoch_train+=epoch_train_time
+    t_total_epoch_train += epoch_train_time
     train_ap=np.mean(train_ap)
     train_auc=np.mean(train_auc)
     train_acc=np.mean(train_acc)
@@ -276,9 +296,6 @@ for i in range(args.n_runs):
 
     epoch_val_time = time.time() - t_epoch_val_start
     t_total_epoch_val += epoch_val_time
-
-
-
 
 
     ########## logging val performance ##########

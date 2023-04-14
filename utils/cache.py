@@ -90,7 +90,7 @@ def read_batches(args,train_data,neighbor_finder,num_embeddings):
 
 
 @jit(nopython=True)
-def MRU_numba(num_embeddings,num_batch,budget,target_list,ngh_list,occur_list):
+def MRD_numba(num_embeddings,num_batch,budget,target_list,ngh_list,occur_list):
   
   MAX_DISTANCE=100000000
   n_reuse=0
@@ -413,8 +413,8 @@ def get_cache_plan(args,train_data,neighbor_finder,num_embeddings,strategy):
   t_prepare=time.time()-prepare_start
 
   start=time.time()
-  if strategy=='MRU':
-    plan,n_reuse,n_recompute,average_reuse_distance=MRU_numba(num_embeddings,num_batch,budget,target_list,ngh_list,occur_list)
+  if strategy=='MRD':
+    plan,n_reuse,n_recompute,average_reuse_distance=MRD_numba(num_embeddings,num_batch,budget,target_list,ngh_list,occur_list)
   elif strategy=='LRU':
     plan,n_reuse,n_recompute,average_reuse_distance=LRU_numba(num_embeddings,num_batch,budget,target_list,ngh_list)
   elif strategy=='2Q':

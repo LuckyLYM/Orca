@@ -19,9 +19,11 @@ class TemporalAttentionLayer(torch.nn.Module):
                                                    vdim=self.key_dim,
                                                    num_heads=n_head,
                                                    dropout=dropout)
+    self.norm = torch.nn.LayerNorm(output_dimension)
 
   def forward(self, src_node_features, src_time_features, neighbors_features,
               neighbors_time_features, edge_features, neighbors_padding_mask):
+    
     '''
     "Temporal attention model
     :param src_node_features: float Tensor of shape [batch_size, n_node_features]
@@ -36,8 +38,6 @@ class TemporalAttentionLayer(torch.nn.Module):
     attn_output_weights: [batch_size, 1, n_neighbors]
     '''
 
-
-  
     src_node_features_unrolled = torch.unsqueeze(src_node_features, dim=1)
     query = torch.cat([src_node_features_unrolled, src_time_features], dim=2)
     key = torch.cat([neighbors_features, edge_features, neighbors_time_features], dim=2)
@@ -52,5 +52,6 @@ class TemporalAttentionLayer(torch.nn.Module):
     attn_output = attn_output.masked_fill(invalid_neighborhood_mask, 0)
     attn_output_weights = attn_output_weights.masked_fill(invalid_neighborhood_mask, 0)
     attn_output = self.merger(attn_output, src_node_features)
+    attn_output = self.norm(attn_output)
     return attn_output, attn_output_weights
 

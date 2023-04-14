@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import pandas as pd
+import os
 
 class Data:
   def __init__(self, sources, destinations, timestamps, edge_idxs, labels):
@@ -27,13 +28,25 @@ class Data:
     labels=self.labels[sample_inds]
     return Data(sources,destination,timestamps,edge_idxs,labels)
 
+def load_feat(d):
+    node_feats = None
+    if os.path.exists('../data/{}/ml_{}_node.npy'.format(d,d)):
+        node_feats = np.load('../data/{}/ml_{}_node.npy'.format(d,d)) 
+
+    edge_feats = None
+    if os.path.exists('../data/{}/ml_{}.npy'.format(d,d)):
+        edge_feats = np.load('../data/{}/ml_{}.npy'.format(d,d))
+    return node_feats, edge_feats
+
 
 ############## load a batch of training data ##############
 def get_data(dataset_name):
   graph_df = pd.read_csv('../data/{}/ml_{}.csv'.format(dataset_name,dataset_name))
-  edge_features = np.load('../data/{}/ml_{}.npy'.format(dataset_name,dataset_name))
-  node_features = np.load('../data/{}/ml_{}_node.npy'.format(dataset_name,dataset_name)) 
-    
+
+  #edge_features = np.load('../data/{}/ml_{}.npy'.format(dataset_name,dataset_name))
+  #node_features = np.load('../data/{}/ml_{}_node.npy'.format(dataset_name,dataset_name)) 
+  #node_features, edge_features = load_feat(dataset_name)
+
   val_time, test_time = list(np.quantile(graph_df.ts, [0.70, 0.85]))
   sources = graph_df.u.values
   destinations = graph_df.i.values
@@ -42,9 +55,11 @@ def get_data(dataset_name):
   timestamps = graph_df.ts.values
   full_data = Data(sources, destinations, timestamps, edge_idxs, labels)
   
+  # ensure we get the same graph
   random.seed(2020)
   node_set = set(sources) | set(destinations)
   n_total_unique_nodes = len(node_set)
+  n_edges = len(sources)
 
   test_node_set = set(sources[timestamps > val_time]).union(set(destinations[timestamps > val_time]))
   new_test_node_set = set(random.sample(test_node_set, int(0.1 * n_total_unique_nodes)))
@@ -93,6 +108,6 @@ def get_data(dataset_name):
     new_node_test_data.n_interactions, new_node_test_data.n_unique_nodes))
   print("{} nodes were used for the inductive testing, i.e. are never seen during training".format(len(new_test_node_set)))
 
-  return node_features, edge_features, full_data, train_data, val_data, test_data, \
-         new_node_val_data, new_node_test_data
+  return full_data, train_data, val_data, test_data, \
+         new_node_val_data, new_node_test_data, n_total_unique_nodes, n_edges
 

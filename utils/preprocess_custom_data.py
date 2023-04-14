@@ -7,7 +7,6 @@ import argparse
 # python preprocess_custom_data.py --data superuser
 def preprocess(data_name):
   u_list, i_list, ts_list, label_list = [], [], [], []
-  feat_l = []
   idx_list = []
 
 
@@ -24,7 +23,6 @@ def preprocess(data_name):
       i_list.append(i)
       ts_list.append(ts)
       idx_list.append(idx)
-      feat_l.append(feat)
 
     u_list=np.array(u_list)
     i_list=np.array(i_list)
@@ -73,11 +71,12 @@ def preprocess(data_name):
                        'i': i_list,
                        'ts': ts_list,
                        'label': label_list,
-                       'idx': idx_list}), np.array(feat_l)
+                       'idx': idx_list})
 
 
 def reindex(df, bipartite=True):
   new_df = df.copy()
+
   # if bipartie, increment nodes ids
   if bipartite:
     assert (df.u.max() - df.u.min() + 1 == len(df.u.unique()))
@@ -99,22 +98,11 @@ def run(data_name, bipartite=True):
   Path("data/").mkdir(parents=True, exist_ok=True)
   PATH = f'./data/{data_name}/{data_name}'
   OUT_DF = f'./data/{data_name}/ml_{data_name}.csv'
-  OUT_FEAT = f'./data/{data_name}/ml_{data_name}.npy'
-  OUT_NODE_FEAT = f'./data/{data_name}/ml_{data_name}_node.npy'
 
-  df, feat = preprocess(PATH)
+  df = preprocess(PATH)
   new_df = reindex(df, bipartite)
-
-  # process edge features
-  empty = np.zeros(feat.shape[1])[np.newaxis, :]
-  feat = np.vstack([empty, feat])
-  max_idx = max(new_df.u.max(), new_df.i.max())
-  
-  # randomized node features
-  rand_feat = np.zeros((max_idx + 1, 172))
   new_df.to_csv(OUT_DF)
-  np.save(OUT_FEAT, feat)
-  np.save(OUT_NODE_FEAT, rand_feat)
+
 
 
 # python preprocess_custom_data.py --data superuser
